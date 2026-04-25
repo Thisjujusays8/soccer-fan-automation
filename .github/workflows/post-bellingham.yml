@@ -1,0 +1,34 @@
+name: Post - Jude Bellingham
+
+on:
+  schedule:
+      - cron: '0 12 * * *'
+        workflow_dispatch:
+
+        jobs:
+          post:
+              runs-on: ubuntu-latest
+                  timeout-minutes: 15
+                      steps:
+                            - uses: actions/checkout@v4
+                                  - name: Install system dependencies
+                                          run: |
+                                                    sudo apt-get update -qq
+                                                              sudo apt-get install -y ffmpeg fonts-dejavu-core
+                                                                    - name: Set up Python
+                                                                            uses: actions/setup-python@v5
+                                                                                    with:
+                                                                                              python-version: '3.11'
+                                                                                                    - name: Install Python packages
+                                                                                                            run: pip install yt-dlp httpx
+                                                                                                                  - name: Run poster
+                                                                                                                          env:
+                                                                                                                                    SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+                                                                                                                                              SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+                                                                                                                                                        IG_USER_ID: ${{ secrets.BELLINGHAM_IG_USER_ID }}
+                                                                                                                                                                  IG_ACCESS_TOKEN: ${{ secrets.BELLINGHAM_IG_ACCESS_TOKEN }}
+                                                                                                                                                                            TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+                                                                                                                                                                                      PLAYER_SLUG: bellingham
+                                                                                                                                                                                                SEARCH_QUERY: Jude Bellingham highlights goals 2025
+                                                                                                                                                                                                          WATERMARK_HANDLE: bellinghamdaily
+                                                                                                                                                                                                                  run: python scripts/post.py

@@ -11,29 +11,48 @@ SEARCH_QUERY=os.environ['SEARCH_QUERY']
 WATERMARK=os.environ['WATERMARK_HANDLE']
 
 SB={'apikey':SUPABASE_KEY,'Authorization':f'Bearer {SUPABASE_KEY}','Content-Type':'application/json'}
+INVIDIOUS='https://inv.nadeko.net'
 
 def sb_get(path,params=''):
     req=urllib.request.Request(f'{SUPABASE_URL}/rest/v1/{path}?{params}',headers=SB)
-    with urllib.request.urlopen(req) as r:return json.loads(r.read())
+    with urllib.request.urlopen(req,timeout=15) as r:return json.loads(r.read())
 
 def sb_post(path,data):
     h={**SB,'Prefer':'return=minimal'}
     req=urllib.request.Request(f'{SUPABASE_URL}/rest/v1/{path}',data=json.dumps(data).encode(),headers=h)
-    with urllib.request.urlopen(req) as r:return r.status
+    with urllib.request.urlopen(req,timeout=15) as r:return r.status
 
 def http_post(url,data,headers=None):
     h={'Content-Type':'application/json',**(headers or {})}
     req=urllib.request.Request(url,data=json.dumps(data).encode(),headers=h)
-    with urllib.request.urlopen(req) as r:return json.loads(r.read())
+    with urllib.request.urlopen(req,timeout=30) as r:return json.loads(r.read())
 
-def search_youtube(query):
-    r=subprocess.run(['yt-dlp',f'ytsearch8:{query}','--dump-json','--flat-playlist','--no-playlist','-q',
-        '--extractor-args','youtube:player_client=ios'],capture_output=True,text=True,timeout=60)
+def search_invidious(query):
+    q=urllib.parse.quote(query)
+    url=f'{INVIDIOUS}/api/v1/search?q={q}&type=video&sort_by=relevance'
+    try:
+        req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+        with urllib.request.urlopen(req,timeout=15) as r:
+            results=json.loads(r.read())
+        return [{'url':f'https://www.youtube.com/watch?v={v["videoId"]}',
+                 'invidious_url':f'{INVIDIOUS}/watch?v={v["videoId"]}',
+                 'vid_id':v['videoId'],
+                 'title':v.get('title','')} for v in results[:8]]
+    except Exception as e:
+        print(f'Invidious search failed: {e}, falling back to yt-dlp')
+        return search_ytdlp(query)
+
+def search_ytdlp(query):
+    r=subprocess.run(['yt-dlp',f'ytsearch8:{query}','--dump-json','--flat-playlist',
+        '--no-playlist','-q','--extractor-args','youtube:player_client=ios'],
+        capture_output=True,text=True,timeout=60)
     results=[]
     for line in r.stdout.strip().splitlines():
         try:
             d=json.loads(line)
             results.append({'url':d.get('url') or f"https://www.youtube.com/watch?v={d['id']}",
+                           'invidious_url':f'{INVIDIOUS}/watch?v={d.get("id","")}',
+                           'vid_id':d.get('id',''),
                            'title':d.get('title','')})
         except:continue
     return results
@@ -42,14 +61,32 @@ def already_posted(url):
     rows=sb_get('posts',f'player_slug=eq.{PLAYER_SLUG}&source_url=eq.{urllib.parse.quote(url)}&select=id')
     return len(rows)>0
 
-def download_and_process(source_url,tmpdir):
+def download_via_invidious(vid_id,tmpdir):
     raw=os.path.join(tmpdir,'raw.mp4')
-    out=os.path.join(tmpdir,'out.mp4')
-    dl=subprocess.run(['yt-dlp',source_url,'-f','best[ext=mp4][height<=1080]/best',
-        '-o',raw,'--merge-output-format','mp4','--no-playlist','-q',
-        '--extractor-args','youtube:player_client=ios'],
-        capture_output=True,text=True,timeout=300)
-    if dl.returncode!=0:raise RuntimeError(f'Download failed: {dl.stderr[:200]}')
+    # Get direct stream URL from Invidious API
+    url=f'{INVIDIOUS}/api/v1/videos/{vid_id}'
+    req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+    with urllib.request.urlopen(req,timeout=15) as r:
+        data=json.loads(r.read())
+    # Find best mp4 stream
+    streams=data.get('formatStreams',[])+data.get('adaptiveFormats',[])
+    mp4s=[s for s in streams if s.get('container','')=='mp4' and 'url' in s]
+    if not mp4s:
+        raise RuntimeError('No mp4 streams from Invidious')
+    # Sort by quality
+    mp4s.sort(key=lambda s:int(s.get('resolution','0p').replace('p','')),reverse=True)
+    stream_url=mp4s[0]['url']
+    # Download
+    req2=urllib.request.Request(stream_url,headers={'User-Agent':'Mozilla/5.0'})
+    with urllib.request.urlopen(req2,timeout=60) as r:
+        with open(raw,'wb') as f:
+            while True:
+                chunk=r.read(1024*1024)
+                if not chunk:break
+                f.write(chunk)
+    return raw
+
+def process_video(raw,out):
     probe=subprocess.run(['ffprobe','-v','quiet','-print_format','json','-show_format',raw],
         capture_output=True,text=True)
     try:start=max(0,min(10,int(float(json.loads(probe.stdout)['format']['duration'])*0.1)))
@@ -59,20 +96,18 @@ def download_and_process(source_url,tmpdir):
         '-c:v','libx264','-crf','26','-preset','fast','-c:a','aac','-b:a','128k',
         '-movflags','+faststart',out,'-y','-loglevel','error'],
         capture_output=True,text=True,timeout=300)
-    if ff.returncode!=0:raise RuntimeError(f'FFmpeg failed: {ff.stderr[:200]}')
-    return out
+    if ff.returncode!=0:raise RuntimeError(f'FFmpeg: {ff.stderr[:200]}')
 
 def upload_storage(filepath):
     key=f'{PLAYER_SLUG}/{uuid.uuid4()}.mp4'
     with open(filepath,'rb') as f:data=f.read()
     req=urllib.request.Request(f'{SUPABASE_URL}/storage/v1/object/videos/{key}',
         data=data,headers={**SB,'Content-Type':'video/mp4'})
-    with urllib.request.urlopen(req):pass
+    with urllib.request.urlopen(req,timeout=120) as r:pass
     return f'{SUPABASE_URL}/storage/v1/object/public/videos/{key}'
 
 def post_instagram(video_url,caption):
-    if not IG_USER_ID or not IG_TOKEN:
-        print('  IG: no credentials, skipping');return ''
+    if not IG_USER_ID or not IG_TOKEN:print('  IG: no credentials, skipping');return ''
     base='https://graph.facebook.com/v19.0'
     c=http_post(f'{base}/{IG_USER_ID}/media',
         {'media_type':'REELS','video_url':video_url,'caption':caption,'share_to_feed':True,'access_token':IG_TOKEN})
@@ -91,23 +126,24 @@ def post_tiktok(video_url,title):
 
 def main():
     print(f'[{PLAYER_SLUG}] Starting')
-    results=search_youtube(SEARCH_QUERY)
+    results=search_invidious(SEARCH_QUERY)
     if not results:print('No results');sys.exit(0)
-    source_url=next((r['url'] for r in results if not already_posted(r['url'])),None)
-    if not source_url:print('All clips already posted');sys.exit(0)
-    title=next(r['title'] for r in results if r['url']==source_url)
-    print(f'  New clip: {title}')
+    item=next((r for r in results if not already_posted(r['url'])),None)
+    if not item:print('All clips already posted');sys.exit(0)
+    print(f'  New clip: {item["title"]}')
     with tempfile.TemporaryDirectory() as tmp:
-        out=download_and_process(source_url,tmp)
+        raw=download_via_invidious(item['vid_id'],tmp)
+        out=os.path.join(tmp,'out.mp4')
+        process_video(raw,out)
         print(f'  Processed ({os.path.getsize(out)//1024}KB), uploading...')
         video_url=upload_storage(out)
     print(f'  Stored: {video_url}')
-    ig_id=post_instagram(video_url,f'{title} ⚽ #{PLAYER_SLUG} #soccer #football #highlights')
+    ig_id=post_instagram(video_url,f'{item["title"]} ⚽ #{PLAYER_SLUG} #soccer #football #highlights')
     if ig_id:print(f'  IG: {ig_id}')
-    tt_id=post_tiktok(video_url,f'{title} ⚽ #soccer #football')
+    tt_id=post_tiktok(video_url,f'{item["title"]} ⚽ #soccer #football')
     if tt_id:print(f'  TikTok: {tt_id}')
-    sb_post('posts',{'player_slug':PLAYER_SLUG,'source_url':source_url,'video_url':video_url,
-        'title':title,'ig_post_id':ig_id,'tt_post_id':tt_id})
+    sb_post('posts',{'player_slug':PLAYER_SLUG,'source_url':item['url'],'video_url':video_url,
+        'title':item['title'],'ig_post_id':ig_id,'tt_post_id':tt_id})
     print(f'[{PLAYER_SLUG}] Done!')
 
 if __name__=='__main__':main()

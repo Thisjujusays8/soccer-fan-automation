@@ -49,8 +49,13 @@ function CandidateCard({ candidate }) {
 export default function Home({ candidates, selectedPlayer, selectedStatus, error }) {
   return (
     <main style={{ fontFamily: 'Arial, sans-serif', maxWidth: 1100, margin: '32px auto', padding: 20 }}>
-      <h1>Soccer Content Queue</h1>
-      <p>Review clips before they are processed or posted. Keep auto approval off until the queue is consistently good.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+        <div>
+          <h1>Soccer Content Queue</h1>
+          <p>Review clips before they are processed or posted. Keep auto approval off until the queue is consistently good.</p>
+        </div>
+        <a href="/api/logout">Log out</a>
+      </div>
 
       <form method="get" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
         <label>

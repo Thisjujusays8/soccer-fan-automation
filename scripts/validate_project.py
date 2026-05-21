@@ -15,6 +15,7 @@ REQUIRED_FILES = [
     '.github/workflows/post-cherki.yml',
     '.github/workflows/post-bellingham.yml',
     '.github/workflows/post-yamal.yml',
+    '.github/workflows/manual-worker.yml',
     '.github/workflows/validate.yml',
     '.env.example',
     'README.md',
@@ -68,6 +69,18 @@ DASHBOARD_REQUIRED_TERMS = {
     'lib/supabaseRest.js': ['SUPABASE_SERVICE_KEY', 'supabaseGet', 'supabasePatch'],
 }
 
+MANUAL_WORKFLOW_TERMS = [
+    'workflow_dispatch:',
+    'player_slug:',
+    'mode:',
+    'discover',
+    'process',
+    'post',
+    'auto',
+    'POST_TO_IG: \'false\'',
+    'POST_TO_TIKTOK: \'false\'',
+]
+
 
 def fail(message):
     print('FAIL:', message)
@@ -110,6 +123,10 @@ def check_workflows():
                 fail(f'{path} missing {required}')
         if expected_slug_line not in content:
             fail(f'{path} has wrong or missing slug line')
+    manual = read('.github/workflows/manual-worker.yml')
+    for term in MANUAL_WORKFLOW_TERMS:
+        if term not in manual:
+            fail(f'manual worker workflow missing {term}')
 
 
 def check_sql():

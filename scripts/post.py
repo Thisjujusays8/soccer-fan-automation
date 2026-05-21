@@ -59,6 +59,7 @@ MAX_RESULTS = int(os.environ.get("MAX_RESULTS", "12"))
 CLIP_SECONDS = int(os.environ.get("CLIP_SECONDS", "45"))
 VIDEO_BUCKET = os.environ.get("VIDEO_BUCKET", "videos")
 DRY_RUN = os.environ.get("DRY_RUN", "false").lower() == "true"
+MAX_VIDEO_BYTES = int(os.environ.get("MAX_VIDEO_BYTES", str(250 * 1024 * 1024)))
 
 SB_HEADERS = {
     "apikey": SUPABASE_SERVICE_KEY,
@@ -89,6 +90,7 @@ GOOD_TITLE_WORDS = {
 class Candidate:
     vid_id: str
     title: str
+    normalized_title: str
     source_url: str
     source_hash: str
     score: int
@@ -165,7 +167,9 @@ def sha256_text(value: str) -> str:
 
 
 def normalize_title(title: str) -> str:
-    return re.sub(r"\s+", " ", re.sub(r"[^\w\s#@]", " ", title.lower())).strip()
+    text = re.sub(r"[^\w\s#@]", " ", title.lower())
+    text = re.sub(r"\b(2020|2021|2022|2023|2024|2025|2026|hd|official|full|video|shorts)\b", " ", text)
+    return re.sub(r"\s+", " ", text).strip()[:180]
 
 
 def score_title(title: str, query: str) -> int:
@@ -181,7 +185,7 @@ def score_title(title: str, query: str) -> int:
     for word in BAD_TITLE_WORDS:
         if word in text:
             score -= 6
-    if "shorts" in text:
+    if "shorts" in title.lower():
         score += 2
     if len(text) < 8:
         score -= 5
@@ -202,6 +206,20 @@ def run_cmd(cmd: List[str], timeout: int) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
 
+def make_candidate(vid_id: str, title: str, instance: Optional[str]) -> Candidate:
+    source_url = f"https://www.youtube.com/watch?v={vid_id}"
+    normalized = normalize_title(title)
+    return Candidate(
+        vid_id=vid_id,
+        title=title,
+        normalized_title=normalized,
+        source_url=source_url,
+        source_hash=sha256_text(source_url),
+        score=score_title(title, SEARCH_QUERY),
+        instance=instance,
+    )
+
+
 def search_invidious(query: str) -> List[Candidate]:
     candidates: List[Candidate] = []
     for instance in INVIDIOUS_INSTANCES:
@@ -214,15 +232,7 @@ def search_invidious(query: str) -> List[Candidate]:
                 title = item.get("title", "")
                 if not vid_id:
                     continue
-                source_url = f"https://www.youtube.com/watch?v={vid_id}"
-                candidates.append(Candidate(
-                    vid_id=vid_id,
-                    title=title,
-                    source_url=source_url,
-                    source_hash=sha256_text(source_url),
-                    score=score_title(title, query),
-                    instance=instance,
-                ))
+                candidates.append(make_candidate(vid_id, title, instance))
             if candidates:
                 log.info("Found %s candidates through %s", len(candidates), instance)
                 return candidates
@@ -251,43 +261,56 @@ def search_ytdlp(query: str, cookies_file: Optional[str]) -> List[Candidate]:
         title = item.get("title", "")
         if not vid_id:
             continue
-        source_url = f"https://www.youtube.com/watch?v={vid_id}"
-        candidates.append(Candidate(
-            vid_id=vid_id,
-            title=title,
-            source_url=source_url,
-            source_hash=sha256_text(source_url),
-            score=score_title(title, query),
-            instance=None,
-        ))
+        candidates.append(make_candidate(vid_id, title, None))
     return candidates
 
 
 def search_youtube(query: str, cookies_file: Optional[str]) -> List[Candidate]:
-    seen = set()
+    seen_ids = set()
+    seen_titles = set()
     combined = search_invidious(query) + search_ytdlp(query, cookies_file)
     unique: List[Candidate] = []
     for item in combined:
-        if item.vid_id in seen:
+        if item.vid_id in seen_ids or item.normalized_title in seen_titles:
             continue
-        seen.add(item.vid_id)
+        seen_ids.add(item.vid_id)
+        seen_titles.add(item.normalized_title)
         unique.append(item)
     unique.sort(key=lambda candidate: candidate.score, reverse=True)
     return unique
 
 
-def candidate_exists(source_hash: str) -> bool:
+def candidate_exists(source_hash: str, normalized_title: str) -> bool:
     rows = sb_get("clip_candidates", f"source_hash=eq.{source_hash}&select=id")
-    return bool(rows)
+    if rows:
+        return True
+    if normalized_title:
+        rows = sb_get(
+            "clip_candidates",
+            f"player_slug=eq.{urllib.parse.quote(PLAYER_SLUG)}&normalized_title=eq.{urllib.parse.quote(normalized_title)}&select=id&limit=1",
+        )
+        if rows:
+            return True
+    return False
 
 
-def post_exists(source_hash: str) -> bool:
+def post_exists(source_hash: str, normalized_title: str) -> bool:
     rows = sb_get("posts", f"source_hash=eq.{source_hash}&select=id")
-    return bool(rows)
+    if rows:
+        return True
+    if normalized_title:
+        rows = sb_get(
+            "posts",
+            f"player_slug=eq.{urllib.parse.quote(PLAYER_SLUG)}&normalized_title=eq.{urllib.parse.quote(normalized_title)}&select=id&limit=1",
+        )
+        if rows:
+            return True
+    return False
 
 
 def save_candidate(candidate: Candidate) -> Optional[Dict[str, Any]]:
-    if candidate_exists(candidate.source_hash) or post_exists(candidate.source_hash):
+    if candidate_exists(candidate.source_hash, candidate.normalized_title) or post_exists(candidate.source_hash, candidate.normalized_title):
+        log.info("Skipping duplicate candidate: %s", candidate.title)
         return None
     status = "approved" if AUTO_APPROVE else "found"
     payload = {
@@ -296,6 +319,7 @@ def save_candidate(candidate: Candidate) -> Optional[Dict[str, Any]]:
         "source_video_id": candidate.vid_id,
         "source_hash": candidate.source_hash,
         "title": candidate.title,
+        "normalized_title": candidate.normalized_title,
         "score": candidate.score,
         "status": status,
         "metadata": {"instance": candidate.instance},
@@ -419,6 +443,13 @@ def process_video(raw: str, out: str) -> None:
         raise RuntimeError("FFmpeg did not produce a valid output file")
 
 
+def validate_video_size(filepath: str) -> int:
+    size = os.path.getsize(filepath)
+    if size > MAX_VIDEO_BYTES:
+        raise RuntimeError(f"Processed video is too large: {size} bytes. Limit is {MAX_VIDEO_BYTES} bytes.")
+    return size
+
+
 def upload_storage(filepath: str) -> str:
     key = f"{PLAYER_SLUG}/{uuid.uuid4()}.mp4"
     with open(filepath, "rb") as file:
@@ -458,9 +489,17 @@ def process_next(tmpdir: str) -> Optional[Dict[str, Any]]:
         raw = download_video(row, tmpdir, write_cookies_file(tmpdir))
         out = os.path.join(tmpdir, "out.mp4")
         process_video(raw, out)
+        video_size_bytes = validate_video_size(out)
         video_url = upload_storage(out)
-        mark_candidate(row["id"], "processed", video_url=video_url, processed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+        mark_candidate(
+            row["id"],
+            "processed",
+            video_url=video_url,
+            video_size_bytes=video_size_bytes,
+            processed_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
         row["video_url"] = video_url
+        row["video_size_bytes"] = video_size_bytes
         row["status"] = "processed"
         log.info("Processed candidate: %s", row["title"])
         return row
@@ -526,7 +565,9 @@ def save_post(row: Dict[str, Any], platform: str, platform_post_id: str) -> None
         "source_url": row["source_url"],
         "source_video_id": row.get("source_video_id"),
         "source_hash": row.get("source_hash") or sha256_text(row["source_url"]),
+        "normalized_title": row.get("normalized_title") or normalize_title(row.get("title", "")),
         "video_url": row["video_url"],
+        "video_size_bytes": row.get("video_size_bytes"),
         "title": row["title"],
         "platform": platform,
         "platform_post_id": platform_post_id,
@@ -546,6 +587,9 @@ def post_next() -> Optional[Dict[str, Any]]:
     if not row.get("video_url"):
         mark_candidate(row["id"], "failed", error_message="Processed candidate has no video_url")
         raise RuntimeError("Processed candidate has no video_url")
+    if row.get("video_size_bytes") and int(row["video_size_bytes"]) > MAX_VIDEO_BYTES:
+        mark_candidate(row["id"], "failed", error_message="Processed candidate is larger than MAX_VIDEO_BYTES")
+        raise RuntimeError("Processed candidate is larger than MAX_VIDEO_BYTES")
     caption = f"{row['title']} ⚽ #{PLAYER_SLUG} #soccer #football #highlights"
     try:
         mark_candidate(row["id"], "posting", error_message=None)

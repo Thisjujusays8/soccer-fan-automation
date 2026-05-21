@@ -17,9 +17,11 @@ REQUIRED_FILES = [
     '.github/workflows/post-yamal.yml',
     '.github/workflows/manual-worker.yml',
     '.github/workflows/validate.yml',
+    '.github/workflows/build-dashboard.yml',
     '.env.example',
     'README.md',
     'DEPLOYMENT.md',
+    'LOCAL_TESTING.md',
     'package.json',
     'pages/index.js',
     'pages/login.js',
@@ -81,6 +83,12 @@ MANUAL_WORKFLOW_TERMS = [
     'POST_TO_TIKTOK: \'false\'',
 ]
 
+BUILD_WORKFLOW_TERMS = [
+    'npm install',
+    'npm run build',
+    'DASHBOARD_PASSWORD',
+]
+
 
 def fail(message):
     print('FAIL:', message)
@@ -127,6 +135,10 @@ def check_workflows():
     for term in MANUAL_WORKFLOW_TERMS:
         if term not in manual:
             fail(f'manual worker workflow missing {term}')
+    dashboard_build = read('.github/workflows/build-dashboard.yml')
+    for term in BUILD_WORKFLOW_TERMS:
+        if term not in dashboard_build:
+            fail(f'build-dashboard workflow missing {term}')
 
 
 def check_sql():

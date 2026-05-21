@@ -19,6 +19,24 @@ function actionButton(id, status, label) {
   );
 }
 
+function DashboardStats({ stats }) {
+  if (!stats || stats.length === 0) {
+    return null;
+  }
+
+  return (
+    <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, margin: '20px 0' }}>
+      {stats.map(item => (
+        <div key={`${item.player_slug}-${item.status}`} style={{ border: '1px solid #ddd', borderRadius: 12, padding: 12 }}>
+          <strong>{item.player_slug}</strong>
+          <p style={{ margin: '6px 0' }}>{item.status}</p>
+          <p style={{ fontSize: 28, margin: 0 }}>{item.count}</p>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function CandidateCard({ candidate }) {
   return (
     <article style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16, marginBottom: 14 }}>
@@ -46,7 +64,7 @@ function CandidateCard({ candidate }) {
   );
 }
 
-export default function Home({ candidates, selectedPlayer, selectedStatus, error }) {
+export default function Home({ candidates, stats, selectedPlayer, selectedStatus, error }) {
   return (
     <main style={{ fontFamily: 'Arial, sans-serif', maxWidth: 1100, margin: '32px auto', padding: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
@@ -56,6 +74,8 @@ export default function Home({ candidates, selectedPlayer, selectedStatus, error
         </div>
         <a href="/api/logout">Log out</a>
       </div>
+
+      <DashboardStats stats={stats} />
 
       <form method="get" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
         <label>
@@ -78,6 +98,18 @@ export default function Home({ candidates, selectedPlayer, selectedStatus, error
       {candidates.map(candidate => <CandidateCard key={candidate.id} candidate={candidate} />)}
     </main>
   );
+}
+
+function buildStats(rows) {
+  const counts = new Map();
+  for (const row of rows) {
+    const key = `${row.player_slug}|${row.status}`;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([key, count]) => {
+    const [player_slug, status] = key.split('|');
+    return { player_slug, status, count };
+  }).sort((a, b) => a.player_slug.localeCompare(b.player_slug) || a.status.localeCompare(b.status));
 }
 
 export async function getServerSideProps(context) {
@@ -104,8 +136,10 @@ export async function getServerSideProps(context) {
 
   try {
     const candidates = await supabaseGet('clip_candidates', filters.join('&'));
-    return { props: { candidates, selectedPlayer, selectedStatus, error: null } };
+    const statRows = await supabaseGet('clip_candidates', 'select=player_slug,status&limit=1000');
+    const stats = buildStats(statRows);
+    return { props: { candidates, stats, selectedPlayer, selectedStatus, error: null } };
   } catch (error) {
-    return { props: { candidates: [], selectedPlayer, selectedStatus, error: error.message } };
+    return { props: { candidates: [], stats: [], selectedPlayer, selectedStatus, error: error.message } };
   }
 }

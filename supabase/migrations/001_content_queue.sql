@@ -18,11 +18,13 @@ create table if not exists public.clip_candidates (
     source_video_id text,
     source_hash text not null unique,
     title text not null,
+    normalized_title text,
     score integer not null default 0,
     status text not null default 'found' check (
         status in ('found','approved','rejected','processing','processed','posting','posted','failed')
     ),
     video_url text,
+    video_size_bytes bigint,
     metadata jsonb not null default '{}'::jsonb,
     error_message text,
     created_at timestamptz not null default now(),
@@ -38,7 +40,9 @@ create table if not exists public.posts (
     source_url text not null,
     source_video_id text,
     source_hash text,
+    normalized_title text,
     video_url text not null,
+    video_size_bytes bigint,
     title text not null,
     platform text not null default 'manual',
     platform_post_id text,
@@ -77,12 +81,20 @@ create index if not exists idx_clip_candidates_player_status_score
 create index if not exists idx_clip_candidates_source_video_id
     on public.clip_candidates(source_video_id);
 
+create index if not exists idx_clip_candidates_player_normalized_title
+    on public.clip_candidates(player_slug, normalized_title)
+    where normalized_title is not null;
+
 create index if not exists idx_posts_player_platform_created
     on public.posts(player_slug, platform, created_at desc);
 
 create unique index if not exists idx_posts_source_platform_unique
     on public.posts(source_hash, platform)
     where source_hash is not null;
+
+create index if not exists idx_posts_player_normalized_title
+    on public.posts(player_slug, normalized_title)
+    where normalized_title is not null;
 
 create or replace function public.set_updated_at()
 returns trigger as $$

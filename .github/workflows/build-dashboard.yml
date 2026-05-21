@@ -1,0 +1,30 @@
+name: Build dashboard
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        env:
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_KEY: test-key
+          SUPABASE_SERVICE_KEY: test-service-key
+          DASHBOARD_PASSWORD: test-password
+        run: npm run build

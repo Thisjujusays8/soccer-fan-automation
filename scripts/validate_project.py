@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import ast
+import json
 import pathlib
 import sys
 
@@ -8,12 +9,21 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 REQUIRED_FILES = [
     'scripts/post.py',
     'scripts/queue.py',
+    'scripts/validate_project.py',
     'supabase/migrations/001_content_queue.sql',
     '.github/workflows/post-cherki.yml',
     '.github/workflows/post-bellingham.yml',
     '.github/workflows/post-yamal.yml',
+    '.github/workflows/validate.yml',
     '.env.example',
     'README.md',
+    'package.json',
+    'pages/index.js',
+    'pages/login.js',
+    'pages/api/login.js',
+    'pages/api/candidates/[id].js',
+    'lib/supabaseRest.js',
+    'lib/dashboardAuth.js',
 ]
 
 WORKFLOWS = {
@@ -43,6 +53,15 @@ POST_REQUIRED_TERMS = [
     'def load_player_defaults',
 ]
 
+DASHBOARD_REQUIRED_TERMS = {
+    'pages/index.js': ['requestIsAuthed', 'supabaseGet', 'CandidateCard', '/api/candidates/'],
+    'pages/login.js': ['action="/api/login"', 'Dashboard login'],
+    'pages/api/login.js': ['makeAuthCookie', 'passwordMatches', 'req.body.password'],
+    'pages/api/candidates/[id].js': ['requestIsAuthed', 'supabasePatch', 'ALLOWED_STATUSES'],
+    'lib/dashboardAuth.js': ['DASHBOARD_PASSWORD', 'HttpOnly', 'SameSite=Lax'],
+    'lib/supabaseRest.js': ['SUPABASE_SERVICE_KEY', 'supabaseGet', 'supabasePatch'],
+}
+
 
 def fail(message):
     print('FAIL:', message)
@@ -60,11 +79,21 @@ def check_files_exist():
 
 
 def check_python_syntax():
-    for path in ['scripts/post.py', 'scripts/queue.py']:
+    for path in ['scripts/post.py', 'scripts/queue.py', 'scripts/validate_project.py']:
         try:
             ast.parse(read(path), filename=path)
         except SyntaxError as exc:
             fail(f'python syntax error in {path}: {exc}')
+
+
+def check_package_json():
+    try:
+        data = json.loads(read('package.json'))
+    except json.JSONDecodeError as exc:
+        fail(f'package.json is invalid JSON: {exc}')
+    for dependency in ['next', 'react', 'react-dom']:
+        if dependency not in data.get('dependencies', {}):
+            fail(f'package.json missing dependency {dependency}')
 
 
 def check_workflows():
@@ -93,12 +122,22 @@ def check_worker_contract():
         fail('MODE=auto does not run discover, process, and post in order')
 
 
+def check_dashboard_contract():
+    for path, terms in DASHBOARD_REQUIRED_TERMS.items():
+        content = read(path)
+        for term in terms:
+            if term not in content:
+                fail(f'{path} missing {term}')
+
+
 def main():
     check_files_exist()
     check_python_syntax()
+    check_package_json()
     check_workflows()
     check_sql()
     check_worker_contract()
+    check_dashboard_contract()
     print('Project validation passed.')
 
 

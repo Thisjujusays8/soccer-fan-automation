@@ -1,3 +1,4 @@
+import { requestIsAuthed } from '../../../lib/dashboardAuth';
 import { supabasePatch } from '../../../lib/supabaseRest';
 
 const ALLOWED_STATUSES = new Set(['found', 'approved', 'rejected', 'processed', 'failed']);
@@ -13,6 +14,10 @@ function redirectBack(req, res) {
 }
 
 export default async function handler(req, res) {
+  if (!requestIsAuthed(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });

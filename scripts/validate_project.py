@@ -10,6 +10,8 @@ REQUIRED_FILES = [
     'scripts/post.py',
     'scripts/queue.py',
     'scripts/summary.py',
+    'scripts/cleanup.py',
+    'scripts/metrics.py',
     'scripts/validate_project.py',
     'supabase/migrations/001_content_queue.sql',
     'supabase/migrations/002_duplicate_detection_and_size.sql',
@@ -67,7 +69,7 @@ POST_REQUIRED_TERMS = [
 ]
 
 DASHBOARD_REQUIRED_TERMS = {
-    'pages/index.js': ['requestIsAuthed', 'supabaseGet', 'CandidateCard', 'DashboardStats', '/api/candidates/', '/api/logout'],
+    'pages/index.js': ['requestIsAuthed', 'supabaseGet', 'CandidateCard', 'DashboardStats', 'formatBytes', 'formatAge', 'ACTIONS_URL', '/api/candidates/', '/api/logout', '/api/health'],
     'pages/login.js': ['action="/api/login"', 'Dashboard login'],
     'pages/api/login.js': ['makeAuthCookie', 'passwordMatches', 'req.body.password'],
     'pages/api/logout.js': ['dashboard_auth=', 'Max-Age=0'],
@@ -75,6 +77,11 @@ DASHBOARD_REQUIRED_TERMS = {
     'pages/api/candidates/[id].js': ['requestIsAuthed', 'supabasePatch', 'ALLOWED_STATUSES'],
     'lib/dashboardAuth.js': ['DASHBOARD_PASSWORD', 'NODE_ENV', 'HttpOnly', 'SameSite=Lax'],
     'lib/supabaseRest.js': ['SUPABASE_SERVICE_KEY', 'supabaseGet', 'supabasePatch'],
+}
+
+SCRIPT_REQUIRED_TERMS = {
+    'scripts/cleanup.py': ['list-failed', 'list-rejected', 'reset-failed'],
+    'scripts/metrics.py': ['list-posts', 'placeholder', 'post_metrics'],
 }
 
 MANUAL_WORKFLOW_TERMS = [
@@ -112,7 +119,7 @@ def check_files_exist():
 
 
 def check_python_syntax():
-    for path in ['scripts/post.py', 'scripts/queue.py', 'scripts/summary.py', 'scripts/validate_project.py']:
+    for path in ['scripts/post.py', 'scripts/queue.py', 'scripts/summary.py', 'scripts/cleanup.py', 'scripts/metrics.py', 'scripts/validate_project.py']:
         try:
             ast.parse(read(path), filename=path)
         except SyntaxError as exc:
@@ -171,6 +178,14 @@ def check_dashboard_contract():
                 fail(f'{path} missing {term}')
 
 
+def check_script_contracts():
+    for path, terms in SCRIPT_REQUIRED_TERMS.items():
+        content = read(path)
+        for term in terms:
+            if term not in content:
+                fail(f'{path} missing {term}')
+
+
 def main():
     check_files_exist()
     check_python_syntax()
@@ -179,6 +194,7 @@ def main():
     check_sql()
     check_worker_contract()
     check_dashboard_contract()
+    check_script_contracts()
     print('Project validation passed.')
 
 

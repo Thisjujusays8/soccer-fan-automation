@@ -1,3 +1,4 @@
+import { requestIsAuthed } from '../lib/dashboardAuth';
 import { supabaseGet } from '../lib/supabaseRest';
 
 const PLAYERS = [
@@ -75,6 +76,15 @@ export default function Home({ candidates, selectedPlayer, selectedStatus, error
 }
 
 export async function getServerSideProps(context) {
+  if (!requestIsAuthed(context.req)) {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false
+      }
+    };
+  }
+
   const selectedPlayer = context.query.player || 'all';
   const selectedStatus = context.query.status || 'found';
   const filters = [];

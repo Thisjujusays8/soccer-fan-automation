@@ -5,10 +5,14 @@ on:
     - cron: '0 12 * * *'
   workflow_dispatch:
 
+concurrency:
+  group: post-bellingham
+  cancel-in-progress: false
+
 jobs:
   post:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v4
@@ -29,16 +33,23 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python packages
-        run: pip install yt-dlp httpx
+        run: python -m pip install --upgrade yt-dlp
 
       - name: Run poster
         env:
           SUPABASE_URL:          ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:          ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_KEY:  ${{ secrets.SUPABASE_SERVICE_KEY }}
           IG_USER_ID:            ${{ secrets.BELLINGHAM_IG_USER_ID }}
           IG_ACCESS_TOKEN:       ${{ secrets.BELLINGHAM_IG_ACCESS_TOKEN }}
           TIKTOK_ACCESS_TOKEN:   ${{ secrets.TIKTOK_ACCESS_TOKEN }}
           PLAYER_SLUG:           bellingham
-          SEARCH_QUERY:          "Jude Bellingham highlights goals 2025"
+          SEARCH_QUERY:          "Jude Bellingham highlights goals assists Real Madrid England 2025"
           WATERMARK_HANDLE:      bellinghamdaily
+          MODE:                  auto
+          AUTO_APPROVE:          "false"
+          POST_TO_IG:            "true"
+          POST_TO_TIKTOK:        "true"
+          MAX_RESULTS:           "16"
+          CLIP_SECONDS:          "45"
         run: python scripts/post.py

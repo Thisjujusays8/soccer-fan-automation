@@ -21,6 +21,8 @@ REQUIRED_FILES = [
     'pages/index.js',
     'pages/login.js',
     'pages/api/login.js',
+    'pages/api/logout.js',
+    'pages/api/health.js',
     'pages/api/candidates/[id].js',
     'lib/supabaseRest.js',
     'lib/dashboardAuth.js',
@@ -54,11 +56,13 @@ POST_REQUIRED_TERMS = [
 ]
 
 DASHBOARD_REQUIRED_TERMS = {
-    'pages/index.js': ['requestIsAuthed', 'supabaseGet', 'CandidateCard', '/api/candidates/'],
+    'pages/index.js': ['requestIsAuthed', 'supabaseGet', 'CandidateCard', '/api/candidates/', '/api/logout'],
     'pages/login.js': ['action="/api/login"', 'Dashboard login'],
     'pages/api/login.js': ['makeAuthCookie', 'passwordMatches', 'req.body.password'],
+    'pages/api/logout.js': ['dashboard_auth=', 'Max-Age=0'],
+    'pages/api/health.js': ['requestIsAuthed', 'players', 'clip_candidates', 'posts'],
     'pages/api/candidates/[id].js': ['requestIsAuthed', 'supabasePatch', 'ALLOWED_STATUSES'],
-    'lib/dashboardAuth.js': ['DASHBOARD_PASSWORD', 'HttpOnly', 'SameSite=Lax'],
+    'lib/dashboardAuth.js': ['DASHBOARD_PASSWORD', 'NODE_ENV', 'HttpOnly', 'SameSite=Lax'],
     'lib/supabaseRest.js': ['SUPABASE_SERVICE_KEY', 'supabaseGet', 'supabasePatch'],
 }
 

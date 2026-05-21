@@ -1,0 +1,66 @@
+name: Manual worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      player_slug:
+        description: Player slug
+        required: true
+        default: cherki
+        type: choice
+        options:
+          - cherki
+          - bellingham
+          - yamal
+      mode:
+        description: Worker mode
+        required: true
+        default: discover
+        type: choice
+        options:
+          - discover
+          - process
+          - post
+          - auto
+
+concurrency:
+  group: manual-worker-${{ inputs.player_slug }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python packages
+        run: python -m pip install --upgrade yt-dlp
+
+      - name: Run worker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          IG_USER_ID: ''
+          IG_ACCESS_TOKEN: ''
+          TIKTOK_ACCESS_TOKEN: ''
+          PLAYER_SLUG: ${{ inputs.player_slug }}
+          MODE: ${{ inputs.mode }}
+          AUTO_APPROVE: 'false'
+          POST_TO_IG: 'false'
+          POST_TO_TIKTOK: 'false'
+          MAX_RESULTS: '16'
+          CLIP_SECONDS: '45'
+        run: python scripts/post.py

@@ -9,6 +9,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 REQUIRED_FILES = [
     'scripts/post.py',
     'scripts/queue.py',
+    'scripts/summary.py',
     'scripts/validate_project.py',
     'supabase/migrations/001_content_queue.sql',
     '.github/workflows/post-cherki.yml',
@@ -17,6 +18,7 @@ REQUIRED_FILES = [
     '.github/workflows/validate.yml',
     '.env.example',
     'README.md',
+    'DEPLOYMENT.md',
     'package.json',
     'pages/index.js',
     'pages/login.js',
@@ -83,7 +85,7 @@ def check_files_exist():
 
 
 def check_python_syntax():
-    for path in ['scripts/post.py', 'scripts/queue.py', 'scripts/validate_project.py']:
+    for path in ['scripts/post.py', 'scripts/queue.py', 'scripts/summary.py', 'scripts/validate_project.py']:
         try:
             ast.parse(read(path), filename=path)
         except SyntaxError as exc:

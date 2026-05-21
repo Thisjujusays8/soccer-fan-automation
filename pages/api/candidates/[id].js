@@ -2,6 +2,16 @@ import { supabasePatch } from '../../../lib/supabaseRest';
 
 const ALLOWED_STATUSES = new Set(['found', 'approved', 'rejected', 'processed', 'failed']);
 
+function wantsHtml(req) {
+  return String(req.headers.accept || '').includes('text/html');
+}
+
+function redirectBack(req, res) {
+  const fallback = '/';
+  const referer = req.headers.referer || fallback;
+  return res.redirect(303, referer);
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -28,6 +38,10 @@ export default async function handler(req, res) {
 
     if (!rows || rows.length === 0) {
       return res.status(404).json({ error: 'Candidate not found' });
+    }
+
+    if (wantsHtml(req)) {
+      return redirectBack(req, res);
     }
 
     return res.status(200).json({ candidate: rows[0] });

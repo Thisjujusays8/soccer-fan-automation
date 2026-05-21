@@ -1,6 +1,8 @@
 import { requestIsAuthed } from '../lib/dashboardAuth';
 import { supabaseGet } from '../lib/supabaseRest';
 
+const ACTIONS_URL = 'https://github.com/Thisjujusays8/soccer-fan-automation/actions/workflows/manual-worker.yml';
+
 const PLAYERS = [
   { slug: 'all', name: 'All players' },
   { slug: 'cherki', name: 'Rayan Cherki' },
@@ -17,6 +19,28 @@ function actionButton(id, status, label) {
       <button type="submit">{label}</button>
     </form>
   );
+}
+
+function formatBytes(value) {
+  if (!value) return 'unknown';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 'unknown';
+  if (number < 1024) return `${number} B`;
+  if (number < 1024 * 1024) return `${(number / 1024).toFixed(1)} KB`;
+  return `${(number / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatAge(value) {
+  if (!value) return 'unknown';
+  const created = new Date(value).getTime();
+  if (!Number.isFinite(created)) return 'unknown';
+  const diffMs = Date.now() - created;
+  const minutes = Math.max(0, Math.floor(diffMs / 60000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 function DashboardStats({ stats }) {
@@ -46,6 +70,8 @@ function CandidateCard({ candidate }) {
           <p style={{ margin: '4px 0' }}>Player: <strong>{candidate.player_slug}</strong></p>
           <p style={{ margin: '4px 0' }}>Status: <strong>{candidate.status}</strong></p>
           <p style={{ margin: '4px 0' }}>Score: <strong>{candidate.score}</strong></p>
+          <p style={{ margin: '4px 0' }}>Age: <strong>{formatAge(candidate.created_at)}</strong></p>
+          <p style={{ margin: '4px 0' }}>Video size: <strong>{formatBytes(candidate.video_size_bytes)}</strong></p>
           {candidate.error_message ? <p style={{ color: '#b00020' }}>Error: {candidate.error_message}</p> : null}
           <p><a href={candidate.source_url} target="_blank" rel="noreferrer">Open source</a></p>
           {candidate.video_url ? <p><a href={candidate.video_url} target="_blank" rel="noreferrer">Open processed video</a></p> : null}
@@ -72,7 +98,11 @@ export default function Home({ candidates, stats, selectedPlayer, selectedStatus
           <h1>Soccer Content Queue</h1>
           <p>Review clips before they are processed or posted. Keep auto approval off until the queue is consistently good.</p>
         </div>
-        <a href="/api/logout">Log out</a>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <a href={ACTIONS_URL} target="_blank" rel="noreferrer">Run worker</a>
+          <a href="/api/health" target="_blank" rel="noreferrer">Health</a>
+          <a href="/api/logout">Log out</a>
+        </div>
       </div>
 
       <DashboardStats stats={stats} />
@@ -130,7 +160,7 @@ export async function getServerSideProps(context) {
     filters.push(`player_slug=eq.${encodeURIComponent(selectedPlayer)}`);
   }
   filters.push(`status=eq.${encodeURIComponent(selectedStatus)}`);
-  filters.push('select=id,player_slug,title,score,status,source_url,video_url,error_message,created_at');
+  filters.push('select=id,player_slug,title,score,status,source_url,video_url,video_size_bytes,error_message,created_at');
   filters.push('order=created_at.desc');
   filters.push('limit=50');
 

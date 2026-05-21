@@ -12,6 +12,7 @@ REQUIRED_FILES = [
     'scripts/summary.py',
     'scripts/validate_project.py',
     'supabase/migrations/001_content_queue.sql',
+    'supabase/migrations/002_duplicate_detection_and_size.sql',
     '.github/workflows/post-cherki.yml',
     '.github/workflows/post-bellingham.yml',
     '.github/workflows/post-yamal.yml',
@@ -44,6 +45,8 @@ SQL_REQUIRED_TERMS = [
     'create table if not exists public.clip_candidates',
     'create table if not exists public.posts',
     'create table if not exists public.post_metrics',
+    'normalized_title',
+    'video_size_bytes',
     "'cherki'",
     "'bellingham'",
     "'yamal'",
@@ -54,14 +57,17 @@ POST_REQUIRED_TERMS = [
     'MODE=process',
     'MODE=post',
     'MODE=auto',
+    'MAX_VIDEO_BYTES',
+    'normalized_title',
     'def discover',
     'def process_next',
     'def post_next',
     'def load_player_defaults',
+    'def validate_video_size',
 ]
 
 DASHBOARD_REQUIRED_TERMS = {
-    'pages/index.js': ['requestIsAuthed', 'supabaseGet', 'CandidateCard', '/api/candidates/', '/api/logout'],
+    'pages/index.js': ['requestIsAuthed', 'supabaseGet', 'CandidateCard', 'DashboardStats', '/api/candidates/', '/api/logout'],
     'pages/login.js': ['action="/api/login"', 'Dashboard login'],
     'pages/api/login.js': ['makeAuthCookie', 'passwordMatches', 'req.body.password'],
     'pages/api/logout.js': ['dashboard_auth=', 'Max-Age=0'],
@@ -142,9 +148,9 @@ def check_workflows():
 
 
 def check_sql():
-    content = read('supabase/migrations/001_content_queue.sql').lower()
+    combined = (read('supabase/migrations/001_content_queue.sql') + read('supabase/migrations/002_duplicate_detection_and_size.sql')).lower()
     for term in SQL_REQUIRED_TERMS:
-        if term.lower() not in content:
+        if term.lower() not in combined:
             fail(f'migration missing {term}')
 
 

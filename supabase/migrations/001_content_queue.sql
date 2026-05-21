@@ -61,9 +61,9 @@ create table if not exists public.post_metrics (
 
 insert into public.players (slug, player_name, search_query, watermark_handle)
 values
-    ('cherki', 'Rayan Cherki', 'Ryan Cherki highlights goals 2025', 'cherkiworld'),
-    ('bellingham', 'Jude Bellingham', 'Jude Bellingham highlights goals 2025', 'bellinghamdaily'),
-    ('yamal', 'Lamine Yamal', 'Lamine Yamal highlights goals 2025', 'yamalworld')
+    ('cherki', 'Rayan Cherki', 'Rayan Cherki highlights goals assists skills 2025', 'cherkiworld'),
+    ('bellingham', 'Jude Bellingham', 'Jude Bellingham highlights goals assists Real Madrid England 2025', 'bellinghamdaily'),
+    ('yamal', 'Lamine Yamal', 'Lamine Yamal highlights goals assists Barcelona Spain 2025', 'yamalworld')
 on conflict (slug) do update set
     player_name = excluded.player_name,
     search_query = excluded.search_query,

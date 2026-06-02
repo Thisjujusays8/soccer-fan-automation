@@ -20,7 +20,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install system dependencies
         run: |
@@ -37,19 +37,20 @@ jobs:
 
       - name: Run poster
         env:
-          SUPABASE_URL:          ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:          ${{ secrets.SUPABASE_KEY }}
-          SUPABASE_SERVICE_KEY:  ${{ secrets.SUPABASE_SERVICE_KEY }}
-          IG_USER_ID:            ${{ secrets.CHERKI_IG_USER_ID }}
-          IG_ACCESS_TOKEN:       ${{ secrets.CHERKI_IG_ACCESS_TOKEN }}
-          TIKTOK_ACCESS_TOKEN:   ${{ secrets.TIKTOK_ACCESS_TOKEN }}
-          PLAYER_SLUG:           cherki
-          SEARCH_QUERY:          "Rayan Cherki highlights goals assists skills 2025"
-          WATERMARK_HANDLE:      cherkiworld
-          MODE:                  auto
-          AUTO_APPROVE:          "false"
-          POST_TO_IG:            "true"
-          POST_TO_TIKTOK:        "true"
-          MAX_RESULTS:           "16"
-          CLIP_SECONDS:          "45"
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          IG_USER_ID: ${{ secrets.CHERKI_IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.CHERKI_IG_ACCESS_TOKEN }}
+          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+          PLAYER_SLUG: cherki
+          SEARCH_QUERY: "Rayan Cherki highlights goals assists skills 2025"
+          WATERMARK_HANDLE: cherkiworld
+          MODE: auto
+          AUTO_APPROVE: "false"
+          POST_TO_IG: "true"
+          POST_TO_TIKTOK: "true"
+          MAX_RESULTS: "16"
+          CLIP_SECONDS: "45"
         run: python scripts/post.py

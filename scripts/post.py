@@ -4,7 +4,7 @@ Soccer fan automation worker.
 
 The worker is intentionally queue first. It should not blindly post whatever it finds.
 
-Modes:
+Modes
   MODE=discover   Find YouTube candidates and save them as found.
   MODE=process    Process one approved candidate into a vertical video.
   MODE=post       Post one processed candidate if social credentials exist.
@@ -43,7 +43,7 @@ log = logging.getLogger("soccer-worker")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
-SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", SUPABASE_KEY)
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "") or SUPABASE_KEY
 IG_USER_ID = os.environ.get("IG_USER_ID", "")
 IG_TOKEN = os.environ.get("IG_ACCESS_TOKEN", "")
 TIKTOK_TOKEN = os.environ.get("TIKTOK_ACCESS_TOKEN", "")

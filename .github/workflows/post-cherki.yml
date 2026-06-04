@@ -45,12 +45,13 @@ jobs:
           TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
           PLAYER_SLUG: cherki
-          SEARCH_QUERY: "Rayan Cherki highlights goals assists skills 2025"
+          SEARCH_QUERY: "Rayan Cherki highlights 2026,Rayan Cherki goals skills 2026,Cherki best moments 2026,Rayan Cherki Premier League 2026"
           WATERMARK_HANDLE: cherkiworld
           MODE: auto
-          AUTO_APPROVE: "false"
+          AUTO_APPROVE: "true"
           POST_TO_IG: "true"
           POST_TO_TIKTOK: "true"
+          IG_COMMENT: "U0001F525 Follow @cherkiworld for daily Cherki content! U0001F525\n\n#RayanCherki #Cherki #Soccer #Football #Goals #Skills #Highlights #UCL #EPL"
           MAX_RESULTS: "16"
           CLIP_SECONDS: "45"
         run: python scripts/post.py

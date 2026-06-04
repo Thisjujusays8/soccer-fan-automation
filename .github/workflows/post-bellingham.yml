@@ -1,4 +1,5 @@
 name: Post - Jude Bellingham
+          IG_COMMENT: "🔥 Follow for daily Bellingham content! 🔥\n\n#JudeBellingham #Bellingham #RealMadrid #Soccer #Football #Goals #Skills #Highlights #LaLiga #UCL"
 
 on:
   schedule:
@@ -44,7 +45,7 @@ jobs:
           IG_ACCESS_TOKEN:       ${{ secrets.BELLINGHAM_IG_ACCESS_TOKEN }}
           TIKTOK_ACCESS_TOKEN:   ${{ secrets.TIKTOK_ACCESS_TOKEN }}
           PLAYER_SLUG:           bellingham
-          SEARCH_QUERY:          "Jude Bellingham highlights goals assists Real Madrid England 2025"
+          SEARCH_QUERY:          "Jude Bellingham highlights goals assists Real Madrid England 2026"
           WATERMARK_HANDLE:      bellinghamdaily
           MODE:                  auto
           AUTO_APPROVE:          "false"

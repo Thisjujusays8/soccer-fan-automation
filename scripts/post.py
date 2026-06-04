@@ -246,7 +246,7 @@ def search_invidious(query: str) -> List[Candidate]:
 def search_ytdlp(query: str, cookies_file: Optional[str]) -> List[Candidate]:
     cmd = [
         "yt-dlp", f"ytsearch{MAX_RESULTS}:{query}", "--dump-json", "--flat-playlist",
-        "--no-playlist", "--extractor-args", "youtube:player_client=ios,android",
+        "--no-playlist", "--extractor-args", "youtube:player_client=tv_embedded,web_embedded",
     ]
     if cookies_file:
         cmd.extend(["--cookies", cookies_file])

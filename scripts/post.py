@@ -69,11 +69,12 @@ SB_HEADERS = {
 }
 
 INVIDIOUS_INSTANCES = [
-    "https://iv.datura.network",
-    "https://invidious.privacydev.net",
-    "https://invidious.lunar.icu",
-    "https://yt.cdaut.de",
-    "https://invidious.fdn.fr",
+    "https://inv.nadeko.net",
+    "https://invidious.nerdvpn.de",
+    "https://inv.thepixora.com",
+    "https://yt.chocolatemoo53.com",
+    "https://invidious.tiekoetter.com",
+    "https://invidious.f5.si",
 ]
 
 BAD_TITLE_WORDS = {
@@ -368,6 +369,9 @@ def download_with_ytdlp(source_url: str, raw_path: str, cookies_file: Optional[s
         "--merge-output-format", "mp4",
         "--no-playlist",
         "--extractor-args", "youtube:player_client=ios,android",
+        "--socket-timeout", "30",
+        "--retries", "3",
+        "--no-check-certificates",
     ]
     if cookies_file:
         cmd.extend(["--cookies", cookies_file])

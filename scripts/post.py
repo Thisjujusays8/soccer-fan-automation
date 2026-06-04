@@ -321,8 +321,8 @@ def save_candidate(candidate: Candidate) -> Optional[Dict[str, Any]]:
         "source_hash": candidate.source_hash,
         "title": candidate.title,
         "normalized_title": candidate.normalized_title,
-           queries = [q.strip()     "score": candidate.score,
-       queries = [q.strip()     "status": status,
+           "score": candidate.score,
+       "status": status,
         "metadata": {"instance": candidate.instance},
     }
     if DRY_RUN:
@@ -335,7 +335,7 @@ def save_candidate(candidate: Candidate) -> Optional[Dict[str, Any]]:
 
 def discover(tmpdir: str) -> List[Dict[str, Any]]:
     cookies_file = write_cookies_file(tmpdir)
-        queries = [q.strip() for q in SEARCH_QUERY.split(",") if q.strip()] or [SEARCH_QUERY]
+    queries = [q.strip() for q in SEARCH_QUERY.split(",") if q.strip()] or [SEARCH_QUERY]
     seen_ids: set = set()
     candidates = []
     for _q in queries:

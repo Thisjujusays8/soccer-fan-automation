@@ -45,12 +45,13 @@ jobs:
           TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
           YT_COOKIES: ${{ secrets.YT_COOKIES }}
           PLAYER_SLUG: yamal
-          SEARCH_QUERY: "Lamine Yamal highlights goals assists Barcelona 2025"
+          SEARCH_QUERY: "Lamine Yamal highlights goals assists Barcelona 2026"
           WATERMARK_HANDLE: yamalworld
           MODE: auto
-          AUTO_APPROVE: "false"
+          AUTO_APPROVE: "true"
           POST_TO_IG: "true"
           POST_TO_TIKTOK: "true"
+          IG_COMMENT: "U0001F525 Follow @yamalworld10 for daily Yamal content! U0001F525\n\n#LamineYamal #Yamal #Barcelona #Soccer #Football #Goals #Skills #Highlights #LaLiga #UCL"
           MAX_RESULTS: "16"
           CLIP_SECONDS: "45"
         run: python scripts/post.py

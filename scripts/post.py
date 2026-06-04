@@ -46,6 +46,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "") or SUPABASE_KEY
 IG_USER_ID = os.environ.get("IG_USER_ID", "")
 IG_TOKEN = os.environ.get("IG_ACCESS_TOKEN", "")
+IG_COMMENT = os.environ.get("IG_COMMENT", "")
 TIKTOK_TOKEN = os.environ.get("TIKTOK_ACCESS_TOKEN", "")
 PLAYER_SLUG = os.environ.get("PLAYER_SLUG", "")
 SEARCH_QUERY = os.environ.get("SEARCH_QUERY", "")
@@ -334,7 +335,14 @@ def save_candidate(candidate: Candidate) -> Optional[Dict[str, Any]]:
 
 def discover(tmpdir: str) -> List[Dict[str, Any]]:
     cookies_file = write_cookies_file(tmpdir)
-    candidates = search_youtube(SEARCH_QUERY, cookies_file)
+        queries = [q.strip() for q in SEARCH_QUERY.split(",") if q.strip()] or [SEARCH_QUERY]
+    seen_ids: set = set()
+    candidates = []
+    for _q in queries:
+        for _c in search_youtube(_q, cookies_file):
+            if _c.vid_id not in seen_ids:
+                seen_ids.add(_c.vid_id)
+                candidates.append(_c)
     saved = []
     for candidate in candidates:
         row = save_candidate(candidate)
@@ -533,6 +541,20 @@ def post_instagram(video_url: str, caption: str) -> str:
     return published.get("id", "")
 
 
+def post_instagram_comment(media_id: str, comment: str) -> None:
+    if not IG_TOKEN or not media_id or not comment:
+        return
+    if DRY_RUN:
+        log.info("[dry_run] Would post comment on %s", media_id)
+        return
+    base = "https://graph.facebook.com/v19.0"
+    try:
+        http_post(f"{base}/{media_id}/comments", {"message": comment, "access_token": IG_TOKEN})
+        log.info("Posted comment on %s", media_id)
+    except Exception as exc:
+        log.warning("Comment failed on %s: %s", media_id, exc)
+
+
 def post_tiktok(video_url: str, title: str) -> str:
     if not POST_TO_TIKTOK or not TIKTOK_TOKEN:
         log.info("TikTok disabled or credentials missing. Skipping.")
@@ -597,6 +619,8 @@ def post_next() -> Optional[Dict[str, Any]]:
         tt_id = post_tiktok(row["video_url"], f"{row['title']} ⚽ #soccer #football")
         if ig_id:
             save_post(row, "instagram", ig_id)
+            if IG_COMMENT:
+                post_instagram_comment(ig_id, IG_COMMENT)
         if tt_id:
             save_post(row, "tiktok", tt_id)
         if not ig_id and not tt_id:

@@ -321,8 +321,8 @@ def save_candidate(candidate: Candidate) -> Optional[Dict[str, Any]]:
         "source_hash": candidate.source_hash,
         "title": candidate.title,
         "normalized_title": candidate.normalized_title,
-        "score": candidate.score,
-        "status": status,
+           queries = [q.strip()     "score": candidate.score,
+       queries = [q.strip()     "status": status,
         "metadata": {"instance": candidate.instance},
     }
     if DRY_RUN:
